@@ -1,0 +1,218 @@
+---
+
+services:
+  nginx:
+    image: openwisp/openwisp-nginx:latest
+    restart: always
+    build:
+      context: "{{ openwisp.path.config }}/docker/images"
+      dockerfile: openwisp_nginx/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - "{{ openwisp.path.dashboard }}/static:/opt/openwisp/static"
+      - "{{ openwisp.path.dashboard }}/media:/opt/openwisp/media"
+      - "{{ openwisp.path.dashboard }}/private:/opt/openwisp/private"
+      - "{{ openwisp.path.config }}/theme/:/opt/openwisp/public/custom:ro"
+    networks:
+      default:
+        aliases:
+         - dashboard.internal
+         - api.internal
+    ports:
+      - "{{ OPENWISP.listen.web_plain }}:80"
+      - "{{ OPENWISP.listen.web_ssl }}:443"
+    depends_on:
+      - dashboard
+      - api
+      - websocket
+
+  dashboard:
+    hostname: 'dashboard'
+    image: openwisp/openwisp-dashboard:latest
+    restart: always
+    build:
+      context: "{{ openwisp.path.config }}/docker/images"
+      dockerfile: openwisp_dashboard/Dockerfile
+      args:
+        DASHBOARD_APP_PORT: 8000
+        OPENWISP_CONTROLLER_SOURCE: "https://github.com/openwisp/openwisp-controller/archive/refs/tags/{{ openwisp.version.controller }}.tar.gz"
+        OPENWISP_MONITORING_SOURCE: "https://github.com/openwisp/openwisp-monitoring/archive/refs/tags/{{ openwisp.version.monitoring }}.tar.gz"
+        OPENWISP_USERS_SOURCE: "https://github.com/openwisp/openwisp-users/archive/refs/tags/{{ openwisp.version.users }}.tar.gz"
+        OPENWISP_FIRMWARE_SOURCE: "https://github.com/openwisp/openwisp-firmware-upgrader/archive/refs/tags/{{ openwisp.version.firmware }}.tar.gz"
+        OPENWISP_TOPOLOGY_SOURCE: "https://github.com/openwisp/openwisp-network-topology/archive/refs/tags/{{ openwisp.version.topology }}.tar.gz"
+        OPENWISP_RADIUS_SOURCE: "https://github.com/openwisp/openwisp-radius/archive/refs/tags/{{ openwisp.version.radius }}.tar.gz"
+        OPENWISP_UTILS_SOURCE: "openwisp-utils[celery,rest] @ https://github.com/openwisp/openwisp-utils/archive/refs/tags/{{ openwisp.version.utils }}.tar.gz"
+    env_file:
+      - './.env'
+    volumes:
+      - "{{ openwisp.path.dashboard }}/static:/opt/openwisp/static"
+      - "{{ openwisp.path.dashboard }}/media:/opt/openwisp/media"
+      - "{{ openwisp.path.dashboard }}/private:/opt/openwisp/private"
+      - "{{ openwisp.path.influxdb }}:/var/lib/influxdb"
+      - "{{ openwisp.path.config }}/django/:/opt/openwisp/openwisp/configuration:ro"
+    depends_on:
+      - postgres
+      - redis
+      - influxdb
+    ports:
+      - "{{ OPENWISP.listen.dashboard }}:8000"
+
+  api:
+    hostname: 'api'
+    image: openwisp/openwisp-api:latest
+    restart: always
+    build:
+      context: "{{ openwisp.path.config }}/docker/images"
+      dockerfile: openwisp_api/Dockerfile
+      args:
+        API_APP_PORT: 8001
+        OPENWISP_CONTROLLER_SOURCE: "https://github.com/openwisp/openwisp-controller/archive/refs/tags/{{ openwisp.version.controller }}.tar.gz"
+        OPENWISP_MONITORING_SOURCE: "https://github.com/openwisp/openwisp-monitoring/archive/refs/tags/{{ openwisp.version.monitoring }}.tar.gz"
+        OPENWISP_USERS_SOURCE: "https://github.com/openwisp/openwisp-users/archive/refs/tags/{{ openwisp.version.users }}.tar.gz"
+        OPENWISP_FIRMWARE_SOURCE: "https://github.com/openwisp/openwisp-firmware-upgrader/archive/refs/tags/{{ openwisp.version.firmware }}.tar.gz"
+        OPENWISP_TOPOLOGY_SOURCE: "https://github.com/openwisp/openwisp-network-topology/archive/refs/tags/{{ openwisp.version.topology }}.tar.gz"
+        OPENWISP_RADIUS_SOURCE: "https://github.com/openwisp/openwisp-radius/archive/refs/tags/{{ openwisp.version.radius }}.tar.gz"
+        OPENWISP_UTILS_SOURCE: "openwisp-utils[celery,rest] @ https://github.com/openwisp/openwisp-utils/archive/refs/tags/{{ openwisp.version.utils }}.tar.gz"
+    env_file:
+      - './.env'
+    volumes:
+      - "{{ openwisp.path.influxdb }}:/var/lib/influxdb"
+      - "{{ openwisp.path.dashboard }}/media:/opt/openwisp/media"
+      - "{{ openwisp.path.dashboard }}/private:/opt/openwisp/private"
+      - "{{ openwisp.path.config }}/django/:/opt/openwisp/openwisp/configuration:ro"
+    depends_on:
+      - postgres
+      - redis
+      - dashboard
+    ports:
+      - "{{ OPENWISP.listen.api }}:8001"
+
+  websocket:
+    hostname: 'websocket'
+    image: openwisp/openwisp-websocket:latest
+    restart: always
+    build:
+      context: "{{ openwisp.path.config }}/docker/images"
+      dockerfile: openwisp_websocket/Dockerfile
+      args:
+        WEBSOCKET_APP_PORT: 8002
+        OPENWISP_CONTROLLER_SOURCE: "https://github.com/openwisp/openwisp-controller/archive/refs/tags/{{ openwisp.version.controller }}.tar.gz"
+        OPENWISP_MONITORING_SOURCE: "https://github.com/openwisp/openwisp-monitoring/archive/refs/tags/{{ openwisp.version.monitoring }}.tar.gz"
+        OPENWISP_USERS_SOURCE: "https://github.com/openwisp/openwisp-users/archive/refs/tags/{{ openwisp.version.users }}.tar.gz"
+        OPENWISP_FIRMWARE_SOURCE: "https://github.com/openwisp/openwisp-firmware-upgrader/archive/refs/tags/{{ openwisp.version.firmware }}.tar.gz"
+        OPENWISP_TOPOLOGY_SOURCE: "https://github.com/openwisp/openwisp-network-topology/archive/refs/tags/{{ openwisp.version.topology }}.tar.gz"
+        OPENWISP_RADIUS_SOURCE: "https://github.com/openwisp/openwisp-radius/archive/refs/tags/{{ openwisp.version.radius }}.tar.gz"
+        OPENWISP_UTILS_SOURCE: "openwisp-utils[celery,rest] @ https://github.com/openwisp/openwisp-utils/archive/refs/tags/{{ openwisp.version.utils }}.tar.gz"
+    env_file:
+      - './.env'
+    volumes:
+      - "{{ openwisp.path.config }}/django/:/opt/openwisp/openwisp/configuration:ro"
+    ports:
+      - "{{ OPENWISP.listen.websocket }}:8002"
+    depends_on:
+      - dashboard
+
+  celery:
+    image: openwisp/openwisp-dashboard:latest
+    restart: always
+    environment:
+      - MODULE_NAME=celery
+    volumes:
+      - "{{ openwisp.path.dashboard }}/media:/opt/openwisp/media"
+      - "{{ openwisp.path.dashboard }}/private:/opt/openwisp/private"
+      - "{{ openwisp.path.config }}/django/:/opt/openwisp/openwisp/configuration:ro"
+    env_file:
+      - './.env'
+    depends_on:
+      - postgres
+      - redis
+      - dashboard
+
+  celery_monitoring:
+    image: openwisp/openwisp-dashboard:latest
+    restart: always
+    environment:
+      - MODULE_NAME=celery_monitoring
+    volumes:
+      - "{{ openwisp.path.dashboard }}/media:/opt/openwisp/media"
+      - "{{ openwisp.path.dashboard }}/private:/opt/openwisp/private"
+      - "{{ openwisp.path.config }}/django/:/opt/openwisp/openwisp/configuration:ro"
+    env_file:
+      - './.env'
+    depends_on:
+      - postgres
+      - redis
+      - dashboard
+
+  celerybeat:
+    image: openwisp/openwisp-dashboard:latest
+    restart: always
+    environment:
+      - MODULE_NAME=celerybeat
+    env_file:
+      - './.env'
+    volumes:
+      - "{{ openwisp.path.config }}/django/:/opt/openwisp/openwisp/configuration:ro"
+    depends_on:
+      - postgres
+      - redis
+      - dashboard
+
+  postgres:
+    hostname: 'postgres'
+    image: postgis/postgis:12-3.4
+    restart: always
+    environment:
+      - POSTGRES_DB=$DB_NAME
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASS
+      - TZ=$TZ
+    volumes:
+      - "{{ openwisp.path.postgres }}:/var/lib/postgresql/data"
+    ports:
+      - "{{ OPENWISP.listen.postgres }}:5432"
+
+  influxdb:
+    hostname: 'influxdb'
+    image: influxdb:1.8-alpine
+    restart: always
+    environment:
+      - INFLUXDB_DB=$INFLUXDB_NAME
+      - INFLUXDB_USER=$INFLUXDB_USER
+      - INFLUXDB_USER_PASSWORD=$INFLUXDB_PASS
+      - INFLUXD_REPORTING_DISABLED=true
+    volumes:
+      - "{{ openwisp.path.influxdb }}:/var/lib/influxdb"
+    ports:
+      - "{{ OPENWISP.listen.influxdb }}:8086"
+
+  redis:
+    hostname: 'redis'
+    image: redis:alpine
+    restart: always
+    ports:
+      - "{{ OPENWISP.listen.redis }}:6379"
+
+  freeradius:
+    hostname: 'radius'
+    image: openwisp/openwisp-freeradius:latest
+    restart: always
+    build:
+      context: "{{ openwisp.path.config }}/docker/images"
+      dockerfile: openwisp_freeradius/Dockerfile
+    env_file:
+      - './.env'
+    ports:
+      - "{{ OPENWISP.listen.radius_auth }}:1812/udp"
+      - "{{ OPENWISP.listen.radius_acc }}:1813/udp"
+    depends_on:
+      - postgres
+      - api
+      - dashboard
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: "{{ OPENWISP.subnet }}"

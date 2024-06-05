@@ -1,0 +1,56 @@
+---
+
+openwisp_defaults:
+  manage:
+    docker: true
+
+  secrets:
+    django:
+    db:
+    # psk:
+
+  settings:
+    domain:
+    domain_api:
+    email:
+
+  version:
+    docker_images: 'master'
+    # see: https://github.com/openwisp/docker-openwisp/blob/master/images/openwisp_base/Dockerfile
+    controller: '1.0.3'
+    monitoring: '1.0.4'
+    firmware: '1.0.1'
+    topology: '1.0.0'
+    radius: '1.0.2'
+    users: '1.0.2'
+    utils: '1.0.5'
+
+  subnet: '172.31.0.0/16'
+
+  listen:
+    web_plain: '127.0.0.1:8080'
+    web_ssl: '127.0.0.1:8443'
+    radius_auth: '1812'
+    radius_acc: '1813'
+    # these are for debugging only:
+    dashboard: '127.0.0.1:8000'
+    api: '127.0.0.1:8001'
+    websocket: '127.0.0.1:8002'
+    postgres: '127.0.0.1:5432'
+    influxdb: '127.0.0.1:8086'
+    redis: '127.0.0.1:6379'
+
+  path:
+    config: '/etc/openwisp'
+    influxdb: '/var/local/influxdb'
+    postgres: '/var/local/postgres'
+    dashboard: '/var/local/openwisp'
+
+  docker_nftables: false
+  # reload nftables after docker start to clean the auto-created iptables rules
+  # you will have to manage the docker ruleset yourself - example:
+  #   forward: {proto: ['tcp', 'udp', 'icmp'], src: '172.31.0.0/16', dest: '172.31.0.0/16'}
+  #   output: accept
+  #   postrouting: accept & {src: '172.31.0.0/16', dest: '!= 172.31.0.0/16', masquerade: true}
+
+OPENWISP: "{{ openwisp_defaults | combine(openwisp, recursive=true) }}"

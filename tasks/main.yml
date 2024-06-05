@@ -1,0 +1,89 @@
+---
+
+- name: OpenWISP | Checking config
+  ansible.builtin.assert:
+    that:
+      - OPENWISP.settings.domain | default(none, true) is not none
+      - OPENWISP.settings.domain_api | default(none, true) is not none
+      - OPENWISP.settings.email | default(none, true) is not none
+      - OPENWISP.secrets.psk | default(none, true) is not none
+      - OPENWISP.secrets.django | default(none, true) is not none
+      - OPENWISP.secrets.django | length > 50
+      - OPENWISP.secrets.db | default(none, true) is not none
+
+- name: OpenWISP | Docker
+  ansible.builtin.include_role:
+    name: ansibleguy.infra_docker_minimal
+  vars:
+    docker:
+      compose:
+        enable: true
+      nftables:
+        reload: "{{ OPENWISP.docker_nftables | bool }}"
+        disable_iptables: "{{ OPENWISP.docker_nftables | bool }}"
+  tags: docker
+  args:
+    apply:
+      tags: docker
+
+- name: OpenWISP | Installing dependencies
+  ansible.builtin.apt:
+    name: ['git']
+
+- name: OpenWISP | Create private directories
+  ansible.builtin.file:
+    state: directory
+    path: "{{ item }}"
+    mode: 0750
+  loop:
+    - "{{ OPENWISP.path.config }}"
+    - "{{ OPENWISP.path.config }}/django"
+    - "{{ OPENWISP.path.config }}/theme"
+    - "{{ OPENWISP.path.influxdb }}"
+    - "{{ OPENWISP.path.postgres }}"
+    - "{{ OPENWISP.path.dashboard }}"
+    - "{{ OPENWISP.path.dashboard }}/private"
+
+- name: OpenWISP | Create public directories
+  ansible.builtin.file:
+    state: directory
+    path: "{{ item }}"
+    mode: 0755
+  loop:
+    - "{{ OPENWISP.path.dashboard }}/static"
+    - "{{ OPENWISP.path.dashboard }}/media"
+
+# see: https://github.com/openwisp/docker-openwisp/blob/master/docker-compose.yml
+- name: OpenWISP | Download dockerfiles
+  ansible.builtin.git:
+    repo: 'https://github.com/openwisp/docker-openwisp.git'
+    dest: '/etc/openwisp/docker'
+    version: "{{ OPENWISP.version.docker_images }}"
+
+- name: OpenWISP | Copy docker-compose
+  ansible.builtin.template:
+    src: 'templates/etc/openwisp/docker-compose.yml.j2'
+    dest: "{{ OPENWISP.path.config }}/docker-compose.yml"
+    mode: 0640
+  register: owsp_cnf1
+
+- name: OpenWISP | Copy config
+  ansible.builtin.template:
+    src: 'templates/etc/openwisp/env.j2'
+    dest: "{{ OPENWISP.path.config }}/.env"
+    mode: 0640
+  register: owsp_cnf2
+
+- name: OpenWISP | Stop with docker-compose config
+  community.docker.docker_compose_v2:
+    project_name: openwisp
+    project_src: "{{ OPENWISP.path.config }}"
+    env_files: "{{ OPENWISP.path.config }}/.env"
+    state: absent
+  when: owsp_cnf1.changed or owsp_cnf2.changed
+
+- name: OpenWISP | Start with docker-compose config
+  community.docker.docker_compose_v2:
+    project_name: openwisp
+    project_src: "{{ OPENWISP.path.config }}"
+    env_files: "{{ OPENWISP.path.config }}/.env"

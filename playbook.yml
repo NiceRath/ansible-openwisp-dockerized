@@ -1,0 +1,12 @@
+---
+
+- name: Configure OpenWISP Server (OpenWRT)
+  hosts: all
+  become: true
+  vars:
+    openwrt:
+      ...
+
+  roles:
+    - nice.docker_minimal
+    - openwisp

@@ -1,0 +1,7 @@
+---
+
+roles:
+  - src: 'ansibleguy.infra_docker_minimal'
+
+collections:
+  - community.docker
